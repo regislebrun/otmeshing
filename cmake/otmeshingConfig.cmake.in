@@ -1,0 +1,44 @@
+#                                               -*- cmake -*-
+#
+#  otmeshingConfig.cmake(.in)
+#
+#  Find otmeshing includes and libraries
+#
+#  Copyright 2005-2026 Airbus-EDF-IMACS-ONERA-Phimeca
+#
+
+# Use the following variables to compile and link against otmeshing:
+#  OTMESHING_FOUND          - True if otmeshing was found on your system
+#  OTMESHING_DEFINITIONS    - Definitions needed to build with otmeshing
+#  OTMESHING_INCLUDE_DIRS   - List of directories where otmeshing' header file are
+#  OTMESHING_LIBRARY        - Library name
+#  OTMESHING_LIBRARIES      - List of libraries to link against
+#  OTMESHING_LIBRARY_DIRS   - List of directories containing otmeshing' libraries
+#  OTMESHING_ROOT_DIR       - The base directory of otmeshing
+#  OTMESHING_VERSION_STRING - A human-readable string containing the version
+#  OTMESHING_VERSION_MAJOR  - The major version of otmeshing
+#  OTMESHING_VERSION_MINOR  - The minor version of otmeshing
+#  OTMESHING_VERSION_PATCH  - The patch version of otmeshing
+
+@PACKAGE_INIT@
+
+set ( OTMESHING_FOUND 1 )
+
+set ( OTMESHING_DEFINITIONS  "@OTMESHING_DEFINITIONS@" )
+set_and_check (OTMESHING_INCLUDE_DIR  "@PACKAGE_OTMESHING_INCLUDE_DIR@")
+set ( OTMESHING_INCLUDE_DIRS "@PACKAGE_OTMESHING_INCLUDE_DIRS@" )
+set_and_check (OTMESHING_LIBRARY      "@OTMESHING_LIBRARY@")
+set ( OTMESHING_LIBRARIES    "@PACKAGE_OTMESHING_LIBRARIES@" )
+set ( OTMESHING_LIBRARY_DIRS "@PACKAGE_OTMESHING_LIBRARY_DIRS@" )
+set_and_check (OTMESHING_ROOT_DIR     "@PACKAGE_OTMESHING_ROOT_DIR@")
+
+set ( OTMESHING_VERSION_STRING "@OTMESHING_VERSION_STRING@" )
+set ( OTMESHING_VERSION_MAJOR  "@OTMESHING_VERSION_MAJOR@" )
+set ( OTMESHING_VERSION_MINOR  "@OTMESHING_VERSION_MINOR@" )
+set ( OTMESHING_VERSION_PATCH  "@OTMESHING_VERSION_PATCH@" )
+
+set (OTMESHING_SWIG_INCLUDE_DIRS "@PACKAGE_OTMESHING_SWIG_INCLUDE_DIRS@")
+set (OTMESHING_PYTHON_MODULE_PATH "@PACKAGE_PYTHON_MODULE_PATH@")
+
+# Our library dependencies (contains definitions for IMPORTED targets)
+include (${CMAKE_CURRENT_LIST_DIR}/otmeshing-Targets.cmake)

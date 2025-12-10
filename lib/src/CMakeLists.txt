@@ -1,0 +1,44 @@
+
+
+ot_add_current_dir_to_include_dirs ()
+
+ot_add_source_file (CloudMesher.cxx)
+
+ot_install_header_file (CloudMesher.hxx)
+
+
+include_directories (${INTERNAL_INCLUDE_DIRS})
+
+add_library (otmeshing ${SOURCEFILES})
+set_target_properties (otmeshing PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if (BUILD_SHARED_LIBS)
+  set_target_properties (otmeshing PROPERTIES COMPILE_DEFINITIONS "OTMESHING_DLL_EXPORTS")
+endif ()
+
+if (NOT DEFINED LIB_VERSION) 
+  set (LIB_VERSION 0.0.0)
+endif ()
+if (NOT DEFINED LIB_SOVERSION) 
+  set (LIB_SOVERSION 0 )
+endif ()
+set_target_properties (otmeshing PROPERTIES VERSION ${LIB_VERSION})
+set_target_properties (otmeshing PROPERTIES SOVERSION ${LIB_SOVERSION})
+target_link_libraries (otmeshing PUBLIC ${OPENTURNS_LIBRARY})
+target_link_libraries (otmeshing PRIVATE Eigen3::Eigen)
+target_link_libraries (otmeshing PRIVATE CGAL::CGAL)
+
+# Add targets to the build-tree export set
+export (TARGETS otmeshing FILE ${PROJECT_BINARY_DIR}/otmeshing-Targets.cmake)
+
+# Install the export set for use with the install-tree
+install(EXPORT otmeshing-Targets
+        DESTINATION "${OTMESHING_CONFIG_CMAKE_PATH}"
+        COMPONENT Development)
+
+install(TARGETS otmeshing
+        EXPORT  otmeshing-Targets 
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION ${OTMESHING_LIBRARY_PATH}
+        ARCHIVE DESTINATION ${OTMESHING_LIBRARY_PATH}
+)
+

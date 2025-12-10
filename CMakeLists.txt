@@ -1,0 +1,196 @@
+cmake_minimum_required (VERSION 3.18)
+
+option (BUILD_PYTHON                 "Build the python module for the library"                               ON)
+option (USE_SPHINX                   "Use sphinx for documentation"                                          OFF)
+option (BUILD_SHARED_LIBS            "Build shared libraries"                                                ON)
+
+# By default, build in Release mode. Must appear before project() command
+set (CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
+
+project (otmeshing)
+
+string (TOLOWER ${CMAKE_PROJECT_NAME} PACKAGE_NAME)
+
+# set module dir to find custom scripts
+list (APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+
+find_package (OpenTURNS CONFIG REQUIRED)
+message (STATUS "Found OpenTURNS: ${OPENTURNS_ROOT_DIR} (found version \"${OPENTURNS_VERSION_STRING}\")")
+
+find_package (Eigen3 CONFIG REQUIRED)
+
+find_package (CGAL CONFIG REQUIRED)
+message (STATUS "Found CGAL: ${CGAL_DIR} (found version \"${CGAL_VERSION}\")")
+
+if (NOT BUILD_SHARED_LIBS)
+  list ( APPEND OTMESHING_DEFINITIONS "-DOTMESHING_STATIC" )
+endif ()
+add_definitions ( ${OTMESHING_DEFINITIONS} )
+
+if (MSVC)
+  # Disable some warnings
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4197 /wd4244 /wd4251 /wd4267 /wd4996")
+endif ()
+
+include (GNUInstallDirs)
+
+set (OTMESHING_LIBRARY_PATH ${CMAKE_INSTALL_LIBDIR})
+set (OTMESHING_INCLUDE_PATH ${CMAKE_INSTALL_INCLUDEDIR})
+set (OTMESHING_SWIG_INCLUDE_DIRS ${OTMESHING_INCLUDE_PATH}/${PACKAGE_NAME}/swig)
+set (OTMESHING_DATA_PATH ${CMAKE_INSTALL_DATAROOTDIR})
+set (OTMESHING_CONFIG_CMAKE_PATH ${CMAKE_INSTALL_LIBDIR}/cmake/otmeshing)
+set (OTMESHING_DOC_PATH ${CMAKE_INSTALL_DOCDIR})
+
+if (BUILD_PYTHON)
+  find_package (SWIG 4)
+  include (${SWIG_USE_FILE})
+
+  option (USE_PYTHON_SABI "Use Python stable ABI" OFF)
+  if (USE_PYTHON_SABI AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.26)
+    find_package (Python 3.6 COMPONENTS Interpreter Development.SABIModule)
+    add_library (Python::Module ALIAS Python::SABIModule)
+  else ()
+    find_package (Python 3.6 COMPONENTS Interpreter Development.Module)
+  endif ()
+
+  if (Python_FOUND)
+    include (FindPythonModule)
+    find_python_module (matplotlib)
+
+    if (USE_SPHINX)
+      find_program (SPHINX_EXECUTABLE NAMES sphinx-build DOC "Sphinx Documentation Builder (sphinx-doc.org)")
+      find_python_module (numpydoc)
+      find_python_module (sphinx_gallery)
+      find_python_module (sphinx_copybutton)
+      if (SPHINX_EXECUTABLE AND NUMPYDOC_FOUND AND SPHINX_GALLERY_FOUND AND SPHINX_COPYBUTTON_FOUND AND MATPLOTLIB_FOUND)
+        find_python_module (sphinx)
+      endif ()
+      if (NOT SPHINX_FOUND)
+        message (STATUS "Disabling documentation (need sphinx/pandoc/numpydoc/sphinx-gallery/matplotlib)")
+      endif ()
+    endif ()
+
+    if (WIN32)
+      set (OTMESHING_PYTHON_MODULE_PATH Lib/site-packages CACHE STRING "site-packages dir")
+    else ()
+      set (OTMESHING_PYTHON_MODULE_PATH ${CMAKE_INSTALL_LIBDIR}/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages CACHE STRING "site-packages dir")
+    endif ()
+  endif ()
+endif ()
+
+
+# Define variables without OTMESHING_ prefix with absolute paths
+foreach (_var PYTHON_MODULE_PATH LIBRARY_PATH INCLUDE_PATH CONFIG_CMAKE_PATH)
+  if (IS_ABSOLUTE "${OTMESHING_${_var}}")
+    set (${_var} ${OTMESHING_${_var}})
+  else ()
+    set (${_var} ${CMAKE_INSTALL_PREFIX}/${OTMESHING_${_var}})
+  endif ()
+  get_filename_component (${_var} "${${_var}}" ABSOLUTE)
+  file (TO_NATIVE_PATH "${${_var}}" NATIVE_${_var})
+  string (REPLACE "\\" "\\\\" NATIVE_${_var} ${NATIVE_${_var}})
+endforeach ()
+
+# RPATH settings
+set (CMAKE_INSTALL_RPATH ${LIBRARY_PATH})
+set (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# Some useful macros to ease CMakeLists.txt file writing
+set (SOURCEFILES "" CACHE INTERNAL "List of source files to compile")
+macro (ot_add_source_file FILENAME)
+  set (sf ${SOURCEFILES} ${CMAKE_CURRENT_SOURCE_DIR}/${FILENAME})
+  set (SOURCEFILES ${sf} CACHE INTERNAL "List of source files to compile")
+endmacro ()
+
+macro (ot_install_header_file FILENAME)
+  install (FILES ${PACKAGE_NAME}/${FILENAME} DESTINATION ${OTMESHING_INCLUDE_PATH}/${PACKAGE_NAME})
+endmacro ()
+
+macro (ot_install_swig_file FILENAME)
+  install (FILES ${FILENAME} DESTINATION ${OTMESHING_SWIG_INCLUDE_DIRS})
+endmacro ()
+
+set (INTERNAL_INCLUDE_DIRS "" CACHE INTERNAL "List of directories with header files needed for build")
+macro (ot_add_current_dir_to_include_dirs)
+  set (inc_dirs ${INTERNAL_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+  set (INTERNAL_INCLUDE_DIRS ${inc_dirs} CACHE INTERNAL "List of directories with header files needed for build")
+endmacro ()
+
+
+set ( CPACK_PACKAGE_NAME          ${PACKAGE_NAME} )
+set ( CPACK_PACKAGE_VERSION_MAJOR 0              )
+set ( CPACK_PACKAGE_VERSION_MINOR 0              )
+set ( CPACK_PACKAGE_VERSION_PATCH                )
+set ( CPACK_SOURCE_GENERATOR      "TGZ;TBZ2"     )
+set (CPACK_BINARY_STGZ    OFF CACHE BOOL "STGZ")
+set (CPACK_BINARY_TBZ2    ON  CACHE BOOL "TBZ2")
+set (CPACK_BINARY_TGZ     ON  CACHE BOOL "TGZ" )
+set (CPACK_BINARY_TZ      OFF CACHE BOOL "TZ"  )
+set ( CPACK_SOURCE_IGNORE_FILES "/.git;/build;.*~;${CPACK_SOURCE_IGNORE_FILES}" )
+set ( PACKAGE_NAME           ${CPACK_PACKAGE_NAME} )
+set ( PACKAGE_VERSION        ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR} )
+if ( CPACK_PACKAGE_VERSION_PATCH )
+  set ( PACKAGE_VERSION       ${PACKAGE_VERSION}.${CPACK_PACKAGE_VERSION_PATCH} )
+endif ()
+set ( CPACK_SOURCE_PACKAGE_FILE_NAME ${PACKAGE_NAME}-${PACKAGE_VERSION} )
+
+
+# The tests can't be run if this function is absent
+enable_testing ()
+add_custom_target (tests COMMENT "Build tests")
+add_custom_target (check COMMENT "Run pre-installation tests")
+add_custom_target (installcheck COMMENT "Run post-installation tests")
+
+add_subdirectory (lib)
+add_dependencies (check cppcheck)
+
+if (Python_FOUND AND SWIG_FOUND)
+  add_subdirectory (python)
+  add_dependencies (installcheck pyinstallcheck)
+endif ()
+
+
+# uninstall target
+configure_file (
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake
+  IMMEDIATE @ONLY
+)
+
+add_custom_target ( uninstall
+  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake
+)
+
+set ( OTMESHING_LIBRARY                 otmeshing )
+set ( OTMESHING_LIBRARIES ${OPENTURNS_LIBRARIES} )
+list ( APPEND OTMESHING_LIBRARIES ${OTMESHING_LIBRARY} )
+set ( OTMESHING_LIBRARY_DIRS ${OPENTURNS_LIBRARY_DIRS} )
+list ( APPEND OTMESHING_LIBRARY_DIRS ${LIBRARY_PATH} )
+set ( OTMESHING_INCLUDE_DIR ${INCLUDE_PATH} )
+set ( OTMESHING_INCLUDE_DIRS ${OTMESHING_INCLUDE_DIR} )
+set ( OTMESHING_ROOT_DIR       ${CMAKE_INSTALL_PREFIX} )
+list ( APPEND OTMESHING_INCLUDE_DIRS ${OPENTURNS_INCLUDE_DIRS} )
+set ( OTMESHING_VERSION_STRING ${PACKAGE_VERSION} )
+set ( OTMESHING_VERSION_MAJOR ${CPACK_PACKAGE_VERSION_MAJOR} )
+set ( OTMESHING_VERSION_MINOR ${CPACK_PACKAGE_VERSION_MINOR} )
+set ( OTMESHING_VERSION_PATCH ${CPACK_PACKAGE_VERSION_PATCH} )
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file (cmake/otmeshingConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/otmeshingConfig.cmake
+  INSTALL_DESTINATION ${OTMESHING_CONFIG_CMAKE_PATH}
+  PATH_VARS
+    OTMESHING_ROOT_DIR
+    OTMESHING_INCLUDE_DIR
+    OTMESHING_INCLUDE_DIRS
+    OTMESHING_LIBRARY_DIRS
+    PYTHON_MODULE_PATH
+  NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+
+write_basic_package_version_file (otmeshingConfigVersion.cmake VERSION ${OTMESHING_VERSION_STRING} COMPATIBILITY AnyNewerVersion)
+
+install (FILES ${CMAKE_CURRENT_BINARY_DIR}/otmeshingConfig.cmake
+               ${CMAKE_CURRENT_BINARY_DIR}/otmeshingConfigVersion.cmake
+         DESTINATION ${OTMESHING_CONFIG_CMAKE_PATH})
+
+include (CPack)
