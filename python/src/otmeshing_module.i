@@ -19,5 +19,4 @@
 // The new classes
 %include otmeshing/otmeshingprivate.hxx
 %include CloudMesher.i
-
-
+%include ConvexHullMesher.i

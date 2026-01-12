@@ -21,12 +21,12 @@
 #include "otmeshing/CloudMesher.hxx"
 #include <openturns/PersistentObjectFactory.hxx>
 
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Triangulation.h>
 #include <CGAL/Epick_d.h>
+#include <CGAL/Triangulation.h>
+#include <CGAL/Delaunay_triangulation.h>
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-typedef CGAL::Triangulation<CGAL::Epick_d<CGAL::Dynamic_dimension_tag> > TriangulationD;
+using DefaultTriangulation = CGAL::Triangulation<CGAL::Epick_d<CGAL::Dynamic_dimension_tag> > ;
+using DelaunayTriangulation = CGAL::Delaunay_triangulation<CGAL::Epick_d<CGAL::Dynamic_dimension_tag> >;
 
 using namespace OT;
 
@@ -39,8 +39,9 @@ static Factory<CloudMesher> Factory_CloudMesher;
 
 
 /* Default constructor */
-CloudMesher::CloudMesher()
+CloudMesher::CloudMesher(const TriangulationMethod method)
   : PersistentObject()
+  , triangulationMethod_(method)
 {
   // Nothing to do
 }
@@ -73,7 +74,7 @@ Mesh buildTriangulation(const Sample & points)
   Sample vertices(0, dimension);
   for (typename TriangulationType::Vertex_iterator vi = triangulation.vertices_begin(); vi != triangulation.vertices_end(); ++ vi)
   {
-    // the first point is never referenced but it is repeated at the end
+    // the infinite first vertex can be skipped
     if (vi == triangulation.vertices_begin())
       ++ vi;
 
@@ -110,7 +111,6 @@ Mesh CloudMesher::build(const Sample & points) const
   if (dimension == 1)
   {
     // special case for dim=1 to avoid special handling in the generic part
-    // with CGAL the first point in the triangulation is null and the first points is not repeated at the end
     vertices.add(points.getMin());
     vertices.add(points.getMax());
     simplices = IndicesCollection(1, dimension + 1);
@@ -119,7 +119,15 @@ Mesh CloudMesher::build(const Sample & points) const
   }
   else
   {
-    return buildTriangulation<TriangulationD>(points);
+    switch (triangulationMethod_)
+    {
+      case BASIC:
+        return buildTriangulation<DefaultTriangulation>(points);
+      case DELAUNAY:
+        return buildTriangulation<DelaunayTriangulation>(points);
+      default:
+        throw InvalidArgumentException(HERE) << "Unknown triangulation method: " << triangulationMethod_;
+    }
   }
 }
 
@@ -134,13 +142,15 @@ String CloudMesher::__repr__() const
 /* Method save() stores the object through the StorageManager */
 void CloudMesher::save(Advocate & adv) const
 {
-  PersistentObject::save( adv );
+  PersistentObject::save(adv);
+  adv.saveAttribute("triangulationMethod_", triangulationMethod_);
 }
 
 /* Method load() reloads the object from the StorageManager */
 void CloudMesher::load(Advocate & adv)
 {
-  PersistentObject::load( adv );
+  PersistentObject::load(adv);
+  adv.loadAttribute("triangulationMethod_", triangulationMethod_);
 }
 
 

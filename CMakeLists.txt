@@ -22,6 +22,11 @@ find_package (Eigen3 CONFIG REQUIRED)
 find_package (CGAL CONFIG REQUIRED)
 message (STATUS "Found CGAL: ${CGAL_DIR} (found version \"${CGAL_VERSION}\")")
 
+option (USE_QHULL "Use QHull for convex hull" ON)
+if (USE_QHULL)
+  find_package (Qhull MODULE)
+endif ()
+
 if (NOT BUILD_SHARED_LIBS)
   list ( APPEND OTMESHING_DEFINITIONS "-DOTMESHING_STATIC" )
 endif ()

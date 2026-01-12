@@ -38,6 +38,7 @@ endmacro ()
 
 
 ot_pyinstallcheck_test (CloudMesher_std IGNOREOUT)
+ot_pyinstallcheck_test (ConvexHullMesher_std IGNOREOUT)
 ot_pyinstallcheck_test (docstring IGNOREOUT)
 
 if (MATPLOTLIB_FOUND)
