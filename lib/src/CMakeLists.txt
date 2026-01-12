@@ -3,9 +3,10 @@
 ot_add_current_dir_to_include_dirs ()
 
 ot_add_source_file (CloudMesher.cxx)
+ot_add_source_file (ConvexHullMesher.cxx)
 
 ot_install_header_file (CloudMesher.hxx)
-
+ot_install_header_file (ConvexHullMesher.hxx)
 
 include_directories (${INTERNAL_INCLUDE_DIRS})
 
@@ -26,6 +27,12 @@ set_target_properties (otmeshing PROPERTIES SOVERSION ${LIB_SOVERSION})
 target_link_libraries (otmeshing PUBLIC ${OPENTURNS_LIBRARY})
 target_link_libraries (otmeshing PRIVATE Eigen3::Eigen)
 target_link_libraries (otmeshing PRIVATE CGAL::CGAL)
+
+if (Qhull_FOUND)
+  # add_definitions("-Dqh_QHpointer")
+  target_compile_definitions (otmeshing PRIVATE OPENTURNS_HAVE_QHULL)
+  target_link_libraries(otmeshing PRIVATE ${QHULL_LIBRARIES})
+endif ()
 
 # Add targets to the build-tree export set
 export (TARGETS otmeshing FILE ${PROJECT_BINARY_DIR}/otmeshing-Targets.cmake)

@@ -8,3 +8,4 @@ API Reference
     :template: classWithPlot.rst_t
   
     CloudMesher
+    ConvexHullMesher

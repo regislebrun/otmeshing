@@ -18,8 +18,8 @@
  *  along with this library.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef OTMESHING_CLOUDMESHER_HXX
-#define OTMESHING_CLOUDMESHER_HXX
+#ifndef OTMESHING_CONVEXHULLMESHER_HXX
+#define OTMESHING_CONVEXHULLMESHER_HXX
 
 #include <openturns/PersistentObject.hxx>
 #include <openturns/StorageManager.hxx>
@@ -30,23 +30,21 @@ namespace OTMESHING
 {
 
 /**
- * @class CloudMesher
+ * @class ConvexHullMesher
  *
- * CloudMesher is some cloudmesher type to illustrate how to add some classes in OpenTURNS
+ * ConvexHullMesher is some cloudmesher type to illustrate how to add some classes in OpenTURNS
  */
-class OTMESHING_API CloudMesher
+class OTMESHING_API ConvexHullMesher
   : public OT::PersistentObject
 {
   CLASSNAME
 
 public:
-  enum TriangulationMethod {BASIC, DELAUNAY};
-  
   /** Default constructor */
-  explicit CloudMesher(const TriangulationMethod method = BASIC);
+  ConvexHullMesher();
 
   /** Virtual constructor method */
-  CloudMesher * clone() const override;
+  ConvexHullMesher * clone() const override;
 
   /** example of a func that return a point squared. **/
   OT::Mesh build(const OT::Sample & points) const;
@@ -61,10 +59,9 @@ public:
   void load(OT::Advocate & adv) override;
 
 private:
-  OT::UnsignedInteger triangulationMethod_ = BASIC;
 
-}; /* class CloudMesher */
+}; /* class ConvexHullMesher */
 
 } /* namespace OTMESHING */
 
-#endif /* OTMESHING_CLOUDMESHER_HXX */
+#endif /* OTMESHING_CONVEXHULLMESHER_HXX */

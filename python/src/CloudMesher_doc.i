@@ -1,6 +1,14 @@
 %feature("docstring") OTMESHING::CloudMesher
 "Mesher from a set of points.
 
+Parameters
+----------
+triangulationMethod : int
+    Triangulation method to use, either:
+
+    - CloudMesher.BASIC (default)
+    - CloudMesher.DELAUNAY triangulation with the empty ball property (slower)
+
 Examples
 --------
 Triangulate a set of points:
@@ -8,7 +16,7 @@ Triangulate a set of points:
 >>> import openturns as ot
 >>> import otmeshing
 >>> points = ot.JointDistribution([ot.Uniform()] * 2).getSample(15)
->>> mesher = otmeshing.CloudMesher()
+>>> mesher = otmeshing.CloudMesher(otmeshing.CloudMesher.DELAUNAY)
 >>> triangulation = mesher.build(points)"
 
 // ---------------------------------------------------------------------
