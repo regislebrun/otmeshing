@@ -624,7 +624,7 @@ Mesh IntersectionMesher::buildCylinder(const Collection<Cylinder> & coll) const
   Collection<Mesh> collMesh(size);
   for (UnsignedInteger i = 0; i < size; ++ i)
     collMesh[i] = mesher.build(coll[i].getVertices());
-  return build(collMesh);
+  return buildConvex(collMesh);
 }
 
 /* Recompression flag accessor */
