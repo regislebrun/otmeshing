@@ -18,7 +18,7 @@
  *  along with this library.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#include "openturns/PersistentObjectFactory.hxx"
+#include <openturns/PersistentObjectFactory.hxx>
 #include "otmeshing/PolygonMesher.hxx"
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
