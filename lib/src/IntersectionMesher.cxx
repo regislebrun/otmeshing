@@ -89,7 +89,7 @@ Mesh IntersectionMesher::build(const Collection<Mesh> & coll) const
       {
         // TODO: parallelize ?
         const Mesh intersection12(buildConvex(Collection<Mesh>({decomposition1[i1], decomposition2[i2]})));
-        if (intersection12.getSimplicesNumber() == 0)
+        if (intersection12.isEmpty())
           continue;
 
         vertices.add(intersection12.getVertices());
@@ -107,13 +107,20 @@ Mesh IntersectionMesher::build(const Collection<Mesh> & coll) const
     return result;
   } // dim=3
 
+  // recursively intersect meshes by pairs until the list is reduce to a single element
   Collection<Mesh> todo(coll);
   while (todo.getSize() > 1)
   {
     Collection<Mesh> done(todo.getSize() / 2);
     // TODO: parallelize ?
     for (UnsignedInteger i = 0; i < todo.getSize() / 2; ++ i)
+    {
       done[i] = build2(todo[2 * i], todo[2 * i + 1]);
+
+      // early exit
+      if (done[i].isEmpty())
+        return done[i];
+    }
 
     // report odd element
     if (todo.getSize() % 2)
@@ -477,7 +484,7 @@ Mesh IntersectionMesher::buildCylinder(const Collection<Cylinder> & coll) const
   Collection<Mesh> collMesh(size);
   for (UnsignedInteger i = 0; i < size; ++ i)
     collMesh[i] = mesher.build(coll[i].getVertices());
-  return buildConvex(collMesh);
+  return build(collMesh);
 }
 
 /* Recompression flag accessor */
