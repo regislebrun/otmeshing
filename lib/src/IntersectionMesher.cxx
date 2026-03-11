@@ -621,11 +621,7 @@ void IntersectionMesher::load(Advocate & adv)
 IntersectionMesher_init::IntersectionMesher_init()
 {
 #ifdef OPENTURNS_HAVE_CDDLIB
-  static std::once_flag flag;
-  std::call_once(flag, [&]()
-  {
-    dd_set_global_constants();
-  });
+  dd_set_global_constants();
 #endif
 }
 
