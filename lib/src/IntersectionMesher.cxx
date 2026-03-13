@@ -513,14 +513,12 @@ struct IntersectionMesherCylinderIntersectionPolicy
 };
 
 
-// loop over the list of cylinders
-// each cylinder is decomposed as a union of convexes if necessary
-// at each step we maintain a list of union of convexes represented as their vertices as each cylinder
-// we start by decompising the first cylinder
-// then for each new cylinder we compute the intersections of each convex in the current list
-// with the each convex forming the new cylinders
+// we intersect the convex cylinders in one pass first (if any) to initialize a list of unions of convexes represented as their vertices
+// the main loop iterates the list of non-convex cylinders, with each cylinder is decomposed as a union of convexes
+// if there were no convex cylinders at the previous step we decompose the first non-convex cylinder to initialize the list of unions
+// then for each new cylinder we compute all the intersections of each convex in the current union list with each convex in its decomposition
 // then the current list of unions is updated, removing the empty intersections
-// finally the last union of convexes obatined after visiting all cylinders is assembled in a single mesh
+// finally the last union of convexes obtained after visiting all cylinders is assembled in a single mesh
 Mesh IntersectionMesher::buildCylinder(const Collection<Cylinder> & coll) const
 {
   const UnsignedInteger size = coll.getSize();
