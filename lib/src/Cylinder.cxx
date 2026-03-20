@@ -23,6 +23,8 @@
 
 #include "otmeshing/Cylinder.hxx"
 #include "otmeshing/ConvexDecompositionMesher.hxx"
+#include "otmeshing/UnionMesher.hxx"
+#include "otmeshing/CloudMesher.hxx"
 
 using namespace OT;
 
@@ -159,6 +161,35 @@ UnsignedInteger Cylinder::getDiscretization() const
 {
   return discretization_;
 }
+
+
+Mesh Cylinder::computeMesh() const
+{
+  CloudMesher cloudMesher;
+  if (isConvex())
+    return cloudMesher.build(getVertices());
+
+  // build list of vertices for each term in the convex decomposition
+  Collection<Sample> unionCurrent;
+  ConvexDecompositionMesher convexDecompositionMesher;
+  const Collection<Mesh> baseDecomposition(convexDecompositionMesher.build(getBase()));
+  const UnsignedInteger baseDecompositionSize = baseDecomposition.getSize();
+  for (UnsignedInteger j = 0; j < baseDecompositionSize; ++ j)
+  {
+    const Cylinder cylinderJ(baseDecomposition[j],
+                              getExtension(),
+                              getInjection(),
+                              getDiscretization());
+    unionCurrent.add(cylinderJ.getVertices());
+  }
+
+  // build mesh of union
+  Collection<Mesh> collMesh(unionCurrent.getSize());
+  for (UnsignedInteger i = 0; i < unionCurrent.getSize(); ++ i)
+    collMesh[i] = cloudMesher.build(unionCurrent[i]);
+  return UnionMesher().build(collMesh);
+}
+
 
 /* Method save() stores the object through the StorageManager */
 void Cylinder::save(Advocate & adv) const

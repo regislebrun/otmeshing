@@ -81,6 +81,9 @@ public:
   /** Dimension accessor */
   OT::UnsignedInteger getDimension() const;
 
+  /** Dimension accessor */
+  OT::Mesh computeMesh() const;
+
   /** Method save() stores the object through the StorageManager */
   void save(OT::Advocate & adv) const override;
 

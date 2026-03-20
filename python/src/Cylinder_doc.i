@@ -120,3 +120,12 @@ Returns
 discretization : int
     Discretization number along dimensions of the extension"
 
+// ---------------------------------------------------------------------
+
+%feature("docstring") OTMESHING::Cylinder::computeMesh
+"Build the mesh.
+
+Returns
+-------
+mesh : :py:class:`openturns.Mesh`
+    Mesh of the cylinder"

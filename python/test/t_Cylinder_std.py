@@ -55,11 +55,11 @@ assert cyl2.isConvex()
 
 print("Mesh cylinder 1")
 method = otm.CloudMesher.BASIC
-mesh1 = otm.CloudMesher(method).build(cyl1.getVertices())
+mesh1 = cyl1.computeMesh()
 if dim <= 3:
     mesh1.exportToVTKFile("mesh1.vtk")
 print("Mesh cylinder 2")
-mesh2 = otm.CloudMesher(method).build(cyl2.getVertices())
+mesh2 = cyl2.computeMesh()
 if dim <= 3:
     mesh2.exportToVTKFile("mesh2.vtk")
 
