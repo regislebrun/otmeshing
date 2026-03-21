@@ -22,6 +22,7 @@
 %include ConvexHullMesher.i
 %include ConvexDecompositionMesher.i
 %include Cylinder.i
+%include FunctionGraphMesher.i
 %include IntersectionMesher.i
 %include MeshDomain2.i
 %include PolygonMesher.i

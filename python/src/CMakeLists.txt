@@ -45,12 +45,12 @@ macro (ot_add_python_module MODULENAME SOURCEFILE)
 endmacro ()
 
 
-
 ot_add_python_module( ${PACKAGE_NAME} ${PACKAGE_NAME}_module.i 
                       CloudMesher.i CloudMesher_doc.i
                       ConvexHullMesher.i ConvexHullMesher_doc.i
                       ConvexDecompositionMesher.i ConvexDecompositionMesher_doc.i
                       Cylinder.i Cylinder_doc.i
+                      FunctionGraphMesher.i FunctionGraphMesher_doc.i
                       IntersectionMesher.i IntersectionMesher_doc.i
                       MeshDomain2.i MeshDomain2_doc.i
                       PolygonMesher.i PolygonMesher_doc.i
