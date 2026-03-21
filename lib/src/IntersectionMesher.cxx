@@ -18,9 +18,13 @@
  *  along with this library.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+#include <chrono>
+
 #include <openturns/PersistentObjectFactory.hxx>
 #include <openturns/SpecFunc.hxx>
 #include <openturns/TBBImplementation.hxx>
+#include <openturns/Log.hxx>
+#include <openturns/OSS.hxx>
 
 #include "otmeshing/IntersectionMesher.hxx"
 #include "otmeshing/CloudMesher.hxx"
@@ -71,21 +75,33 @@ String IntersectionMesher::__str__(const String & ) const
 struct IntersectionMesherConvexSamplePolicy
 {
   const IntersectionMesher & intersectionMesher_;
-  const Collection<std::pair<Sample, Sample> > input_;
+  const Collection<Sample> & input1_;
+  const Collection<Sample> & input2_;
+  UnsignedInteger done_;
   Collection<Sample> & output_;
+  UnsignedInteger stride_;
 
   IntersectionMesherConvexSamplePolicy(const IntersectionMesher & intersectionMesher,
-                                              const Collection<std::pair<Sample, Sample> > & input,
-                                              Collection<Sample> & output)
+				       const Collection<Sample> & input1,
+				       const Collection<Sample> & input2,
+				       const UnsignedInteger done,
+				       Collection<Sample> & output)
     : intersectionMesher_(intersectionMesher)
-    , input_(input)
+    , input1_(input1)
+    , input2_(input2)
+    , done_(done)
     , output_(output)
+    , stride_(input1.getSize())
   {}
 
   inline void operator()(const TBBImplementation::BlockedRange<UnsignedInteger> & r) const
   {
-    for (UnsignedInteger i = r.begin(); i != r.end(); ++i)
-      output_[i] = intersectionMesher_.buildConvexSample({input_[i].first, input_[i].second});
+    for (UnsignedInteger n = r.begin(); n != r.end(); ++n)
+      {
+	const UnsignedInteger i = (n + done_) % stride_;
+	const UnsignedInteger j = (n + done_) / stride_;
+	output_[n] = intersectionMesher_.buildConvexSample({input1_[i], input2_[j]});
+      }
   }
 };
 
@@ -95,48 +111,68 @@ Mesh IntersectionMesher::build(const Collection<Mesh> & coll) const
   if (size == 0)
     return Mesh(Sample(0, 0));
 
-  Collection<Sample> unionCurrent;
-
   // build decomposition of first mesh
   ConvexDecompositionMesher convexDecompositionMesher;
-  const Collection<Mesh> baseDecomposition0(convexDecompositionMesher.build(coll[0]));
+  LOGDEBUG("Build decomposition of mesh 0");
+  std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+  Collection<Sample> unionCurrent;
+  const Collection<Mesh> baseDecomposition0(convexDecompositionMesher.build(coll[0], useSimplicesDecomposition_));
   const UnsignedInteger baseDecompositionSize0 = baseDecomposition0.getSize();
   for (UnsignedInteger j = 0; j < baseDecompositionSize0; ++ j)
     unionCurrent.add(baseDecomposition0[j].getVertices());
+  std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+  Scalar timeDuration = std::chrono::duration<Scalar>(t1 - t0).count();
+  LOGDEBUG(OSS() << "Got " << baseDecompositionSize0 << " parts in t=" << timeDuration << "s");
 
   // for each remaining mesh i
-  for (UnsignedInteger i = 1; i < size; ++ i)
+  for (UnsignedInteger i = 1; i < size; ++i)
   {
     // build decomposition
+    LOGDEBUG(OSS() << "Build decomposition of mesh " << i);
+    t0 = std::chrono::steady_clock::now();
     Collection<Sample> unionNext;
-    const Collection<Mesh> baseDecomposition(convexDecompositionMesher.build(coll[i]));
+    const Collection<Mesh> baseDecomposition(convexDecompositionMesher.build(coll[i], useSimplicesDecomposition_));
     const UnsignedInteger baseDecompositionSize = baseDecomposition.getSize();
+    LOGDEBUG(OSS() << "Got " << baseDecompositionSize << " parts");
     for (UnsignedInteger j = 0; j < baseDecompositionSize; ++ j)
       unionNext.add(baseDecomposition[j].getVertices());
 
-    // build lists of intersections to compute
-    Collection<std::pair<Sample, Sample> > toDo;
-    for (UnsignedInteger i0 = 0; i0 < unionCurrent.getSize(); ++ i0)
-      for (UnsignedInteger i1 = 0; i1 < unionNext.getSize(); ++ i1)
-        toDo.add(std::pair<Sample, Sample>(unionCurrent[i0], unionNext[i1]));
-
+    t1 = std::chrono::steady_clock::now();
+    timeDuration = std::chrono::duration<Scalar>(t1 - t0).count();
+    LOGDEBUG(OSS() << "Got " << baseDecompositionSize << " parts in t=" << timeDuration << "s");
     // loop over intersections
-    const UnsignedInteger toDoSize = toDo.getSize();
-    unionCurrent.resize(toDoSize);
-    const IntersectionMesherConvexSamplePolicy policy(*this, toDo, unionCurrent);
-    TBBImplementation::ParallelFor(0, toDo.getSize(), policy);
-
-    // prune empty intersections
-    Collection<Sample> nonEmpty;
-    for (UnsignedInteger i0 = 0; i0 < unionCurrent.getSize(); ++ i0)
-      if (unionCurrent[i0].getSize())
-        nonEmpty.add(unionCurrent[i0]);
-    unionCurrent = nonEmpty;
-
+    t0 = std::chrono::steady_clock::now();
+    const UnsignedInteger toDoSize = unionCurrent.getSize() * unionNext.getSize();
+    const UnsignedInteger chunkSize = 1<<20;
+    LOGDEBUG(OSS() << "Ready to compute " << toDoSize << " pairwise intersections by chunks of size " << chunkSize);
+    UnsignedInteger done = 0;
+    Collection<Sample> result(0);
+    UnsignedInteger nChunks = 0;
+    Collection<Sample> resultChunk(chunkSize);
+    while (done < toDoSize)
+      {
+	if (done / chunkSize > nChunks)
+	  {
+	    nChunks = done / chunkSize;
+	    LOGDEBUG(OSS() << "done " << done << "/" << toDoSize);
+	  }
+	const UnsignedInteger toDo = std::min(chunkSize, toDoSize - done);
+	resultChunk.resize(toDo);
+	const IntersectionMesherConvexSamplePolicy policy(*this, unionCurrent, unionNext, done, resultChunk);
+	TBBImplementation::ParallelFor(0, toDo, policy);
+	done += toDo;
+	// prune empty intersections
+	for (UnsignedInteger i0 = 0; i0 < resultChunk.getSize(); ++ i0)
+	  if (resultChunk[i0].getSize())
+	    result.add(resultChunk[i0]);
+      } // while (done < toDoSize)
+    t1 = std::chrono::steady_clock::now();
+    timeDuration = std::chrono::duration<Scalar>(t1 - t0).count();
+    LOGDEBUG(OSS() << "Done, t=" << timeDuration << "s");
     // early exit if there are no non-empty intersections at this stage
+    unionCurrent = result;
     if (!unionCurrent.getSize())
       return Mesh(Sample(0, coll[i].getDimension()));
-
   } // for mesh i
 
   // build mesh of union of remaining intersections
@@ -390,7 +426,7 @@ Mesh IntersectionMesher::buildCylinder(const Collection<Cylinder> & coll) const
   {
     // build decomposition of first non-convex cylinder
     const Cylinder cylinder0(coll[nonConvex[0]]);
-    const Collection<Mesh> baseDecomposition(convexDecompositionMesher.build(cylinder0.getBase()));
+    const Collection<Mesh> baseDecomposition(convexDecompositionMesher.build(cylinder0.getBase(), useSimplicesDecomposition_));
     const UnsignedInteger baseDecompositionSize = baseDecomposition.getSize();
     for (UnsignedInteger j = 0; j < baseDecompositionSize; ++ j)
     {
@@ -411,7 +447,7 @@ Mesh IntersectionMesher::buildCylinder(const Collection<Cylinder> & coll) const
     // build decomposition
     Collection<Sample> unionNext;
     const Cylinder cylinderI(coll[nonConvex[i]]);
-    const Collection<Mesh> baseDecomposition(convexDecompositionMesher.build(cylinderI.getBase()));
+    const Collection<Mesh> baseDecomposition(convexDecompositionMesher.build(cylinderI.getBase(), useSimplicesDecomposition_));
     const UnsignedInteger baseDecompositionSize = baseDecomposition.getSize();
     for (UnsignedInteger j = 0; j < baseDecompositionSize; ++ j)
     {
@@ -423,23 +459,18 @@ Mesh IntersectionMesher::buildCylinder(const Collection<Cylinder> & coll) const
     }
 
     // build lists of intersections to compute
-    Collection<std::pair<Sample, Sample> > toDo;
-    for (UnsignedInteger i0 = 0; i0 < unionCurrent.getSize(); ++ i0)
-      for (UnsignedInteger i1 = 0; i1 < unionNext.getSize(); ++ i1)
-        toDo.add(std::pair<Sample, Sample>(unionCurrent[i0], unionNext[i1]));
+    const UnsignedInteger toDoSize = unionCurrent.getSize() *  unionNext.getSize();
 
     // loop over intersections
-    const UnsignedInteger toDoSize = toDo.getSize();
-    unionCurrent.resize(toDoSize);
-    const IntersectionMesherConvexSamplePolicy policy(*this, toDo, unionCurrent);
-    TBBImplementation::ParallelFor(0, toDo.getSize(), policy);
+    Collection<Sample> result(toDoSize);
+    const IntersectionMesherConvexSamplePolicy policy(*this, unionCurrent, unionNext, 0, result);
+    TBBImplementation::ParallelFor(0, toDoSize, policy);
 
     // prune empty intersections
-    Collection<Sample> nonEmpty;
-    for (UnsignedInteger i0 = 0; i0 < unionCurrent.getSize(); ++ i0)
-      if (unionCurrent[i0].getSize())
-        nonEmpty.add(unionCurrent[i0]);
-    unionCurrent = nonEmpty;
+    unionCurrent.resize(0);
+    for (UnsignedInteger i0 = 0; i0 < result.getSize(); ++ i0)
+      if (result[i0].getSize())
+        unionCurrent.add(result[i0]);
 
     // early exit if there are no non-empty intersections at this stage
     if (!unionCurrent.getSize())
@@ -467,11 +498,23 @@ Bool IntersectionMesher::getRecompress() const
   return recompress_;
 }
 
+/* Simplices decomposition flag accessor */
+void IntersectionMesher::setUseSimplicesDecomposition(const Bool useSimplicesDecomposition)
+{
+  useSimplicesDecomposition_ = useSimplicesDecomposition;
+}
+
+Bool IntersectionMesher::getUseSimplicesDecomposition() const
+{
+  return useSimplicesDecomposition_;
+}
+
 /* Method save() stores the object through the StorageManager */
 void IntersectionMesher::save(Advocate & adv) const
 {
   PersistentObject::save(adv);
   adv.saveAttribute("recompress_", recompress_);
+  adv.saveAttribute("useSimplicesDecomposition_", useSimplicesDecomposition_);
 }
 
 /* Method load() reloads the object from the StorageManager */
@@ -479,6 +522,7 @@ void IntersectionMesher::load(Advocate & adv)
 {
   PersistentObject::load(adv);
   adv.loadAttribute("recompress_", recompress_);
+  adv.loadAttribute("useSimplicesDecomposition_", useSimplicesDecomposition_);
 }
 
 IntersectionMesher_init::IntersectionMesher_init()

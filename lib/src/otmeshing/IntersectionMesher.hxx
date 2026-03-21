@@ -66,6 +66,10 @@ public:
   void setRecompress(const OT::Bool recompress);
   OT::Bool getRecompress() const;
 
+  /** Use basic decomposition flag accessor */
+  void setUseSimplicesDecomposition(const OT::Bool useSimplicesDecomposition);
+  OT::Bool getUseSimplicesDecomposition() const;
+
   /** Method save() stores the object through the StorageManager */
   void save(OT::Advocate & adv) const override;
 
@@ -75,7 +79,9 @@ public:
 protected:
   OT::Bool recompress_ = true;
 
+  OT::Bool useSimplicesDecomposition_ = true;
 private:
+  
 
 }; /* class IntersectionMesher */
 
